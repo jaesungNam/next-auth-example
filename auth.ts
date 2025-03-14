@@ -52,13 +52,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   debug: true,
   theme: { logo: "https://authjs.dev/img/logo-sm.png" },
   providers: [
-    GitHub,
-    Google,
-    Keycloak({
-      name: "Keycloak",
-    }),
+    Keycloak
   ],
-  basePath: "/auth",
   session: { strategy: "jwt" },
   callbacks: {
     authorized({ request, auth }) {
@@ -80,6 +75,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   experimental: { enableWebAuthn: true },
+  pages: {
+    signIn: '/signin'
+  }
 })
 
 declare module "next-auth" {
