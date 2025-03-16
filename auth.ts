@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
-import "next-auth/jwt"
+import {encode} from "next-auth/jwt"
+
 
 import Apple from "next-auth/providers/apple"
 // import Atlassian from "next-auth/providers/atlassian"
@@ -37,6 +38,7 @@ import { createStorage } from "unstorage"
 import memoryDriver from "unstorage/drivers/memory"
 import vercelKVDriver from "unstorage/drivers/vercel-kv"
 import { UnstorageAdapter } from "@auth/unstorage-adapter"
+import {NextResponse} from "next/server";
 
 const storage = createStorage({
   driver: process.env.VERCEL
@@ -48,17 +50,99 @@ const storage = createStorage({
     : memoryDriver(),
 })
 
+const options = {
+  pkceCodeVerifier: {
+    name: `authjs.pkce.code_verifier`,
+      options: {
+      httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 15, // 15 minutes in seconds
+    },
+  },
+}
+
+async function generatePKCE(): Promise<{ codeVerifier: string; codeChallenge: string }> {
+  const codeVerifier = generateRandomString(128);
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
+  return { codeVerifier, codeChallenge };
+}
+
+// ✅ 난수 기반 `code_verifier` 생성 (128자 랜덤 문자열)
+function generateRandomString(length: number): string {
+  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array); // Web Crypto API 사용
+  console.log(array)
+  return Array.from(array, (byte) => charset[byte % charset.length]).join('');
+}
+
+// ✅ SHA-256 해싱 후 Base64 URL 인코딩하여 `code_challenge` 생성
+async function generateCodeChallenge(codeVerifier: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(codeVerifier);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return base64UrlEncode(new Uint8Array(digest));
+}
+
+// ✅ Base64 URL-safe 인코딩
+function base64UrlEncode(buffer: Uint8Array): string {
+  // @ts-ignore
+  return btoa(String.fromCharCode(...buffer))
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  debug: true,
+  debug: false,
   theme: { logo: "https://authjs.dev/img/logo-sm.png" },
   providers: [
     Keycloak
   ],
   session: { strategy: "jwt" },
   callbacks: {
-    authorized({ request, auth }) {
+    async authorized({ request, auth }) {
+      const bb = await generatePKCE();
+      console.log(bb)
+
+
+
       const { pathname } = request.nextUrl
-      if (pathname === "/middleware-example") return !!auth
+      if (pathname === "/middleware-example" && !auth) {
+        const { codeChallenge, codeVerifier} = await generatePKCE()
+        const oauth2Params = {
+          "response_type": "code",
+          "client_id": "web-client",
+          "redirect_uri": "http://localhost:3000/api/auth/callback/keycloak",
+          "code_challenge": codeChallenge,
+          "code_challenge_method": "S256",
+          "scope": "openid profile email"
+        } as Record<string, string>
+        const url = new URL('https://auth.overpowerman.click/realms/myrealm/protocol/openid-connect/auth');
+        Object.keys(oauth2Params).map(p => url.searchParams.set(p, oauth2Params[p]))
+        const resp = NextResponse.redirect(url)
+
+        const codeVerifierEncoded = await encode<{value: string}>({
+          salt: "authjs.pkce.code_verifier",
+          token: { value: codeVerifier},
+          maxAge: 900,
+          secret: '30a5185b44a7426d1684500b9fdea7b59dc76d967c6b01e5a7bff08972acb3f3'
+        })
+
+        resp.cookies.set(
+          "authjs.pkce.code_verifier",
+          codeVerifierEncoded,
+          {
+            maxAge: 900,
+            path: '/',
+            httpOnly: true,
+            sameSite: "lax",
+          }
+        )
+
+        return resp;
+      }
       return true
     },
     jwt({ token, trigger, session, account }) {
@@ -75,9 +159,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   experimental: { enableWebAuthn: true },
-  pages: {
-    signIn: '/signin'
-  }
 })
 
 declare module "next-auth" {

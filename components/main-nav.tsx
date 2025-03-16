@@ -15,6 +15,7 @@ import {
 } from "./ui/navigation-menu"
 import React from "react"
 import { Button } from "./ui/button"
+import {signIn} from "next-auth/react";
 
 export function MainNav() {
   return (
@@ -33,6 +34,9 @@ export function MainNav() {
       <NavigationMenu>
         <NavigationMenuList>
           <NavigationMenuItem>
+            <Button onClick={() => {
+              signIn("keycloak")
+            }}>클라로긴</Button>
             <NavigationMenuTrigger className="px-2">
               Server Side
             </NavigationMenuTrigger>
