@@ -101,7 +101,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             sameSite: "lax",
           }
         )
-        // return false
+        resp.cookies.set(
+          `${cookiePrefix}authjs.callback-url`,
+          request.url,
+          {
+            path: '/',
+            httpOnly: true,
+            secure: useSecureCookies,
+            sameSite: "lax",
+          }
+        )
+
         return resp;
       }
       return true
