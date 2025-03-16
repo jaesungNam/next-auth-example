@@ -1,43 +1,10 @@
 import NextAuth from "next-auth"
 import {encode} from "next-auth/jwt"
-
-
-import Apple from "next-auth/providers/apple"
-// import Atlassian from "next-auth/providers/atlassian"
-import Auth0 from "next-auth/providers/auth0"
-import AzureB2C from "next-auth/providers/azure-ad-b2c"
-import BankIDNorway from "next-auth/providers/bankid-no"
-import BoxyHQSAML from "next-auth/providers/boxyhq-saml"
-import Cognito from "next-auth/providers/cognito"
-import Coinbase from "next-auth/providers/coinbase"
-import Discord from "next-auth/providers/discord"
-import Dropbox from "next-auth/providers/dropbox"
-import Facebook from "next-auth/providers/facebook"
-import GitHub from "next-auth/providers/github"
-import GitLab from "next-auth/providers/gitlab"
-import Google from "next-auth/providers/google"
-import Hubspot from "next-auth/providers/hubspot"
 import Keycloak from "next-auth/providers/keycloak"
-import LinkedIn from "next-auth/providers/linkedin"
-import MicrosoftEntraId from "next-auth/providers/microsoft-entra-id"
-import Netlify from "next-auth/providers/netlify"
-import Okta from "next-auth/providers/okta"
-import Passage from "next-auth/providers/passage"
-import Passkey from "next-auth/providers/passkey"
-import Pinterest from "next-auth/providers/pinterest"
-import Reddit from "next-auth/providers/reddit"
-import Slack from "next-auth/providers/slack"
-import Salesforce from "next-auth/providers/salesforce"
-import Spotify from "next-auth/providers/spotify"
-import Twitch from "next-auth/providers/twitch"
-import Twitter from "next-auth/providers/twitter"
-import Vipps from "next-auth/providers/vipps"
-import WorkOS from "next-auth/providers/workos"
-import Zoom from "next-auth/providers/zoom"
+
 import { createStorage } from "unstorage"
 import memoryDriver from "unstorage/drivers/memory"
 import vercelKVDriver from "unstorage/drivers/vercel-kv"
-import { UnstorageAdapter } from "@auth/unstorage-adapter"
 import {NextResponse} from "next/server";
 
 const storage = createStorage({
@@ -50,18 +17,6 @@ const storage = createStorage({
     : memoryDriver(),
 })
 
-const options = {
-  pkceCodeVerifier: {
-    name: `authjs.pkce.code_verifier`,
-      options: {
-      httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 15, // 15 minutes in seconds
-    },
-  },
-}
-
 async function generatePKCE(): Promise<{ codeVerifier: string; codeChallenge: string }> {
   const codeVerifier = generateRandomString(128);
   const codeChallenge = await generateCodeChallenge(codeVerifier);
@@ -73,7 +28,6 @@ function generateRandomString(length: number): string {
   const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
   const array = new Uint8Array(length);
   crypto.getRandomValues(array); // Web Crypto API 사용
-  console.log(array)
   return Array.from(array, (byte) => charset[byte % charset.length]).join('');
 }
 
@@ -102,12 +56,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: { strategy: "jwt" },
   callbacks: {
+    async redirect({url, baseUrl}) {
+      /* 로그인이 성공 (oauth2 로그인 성공) 하면 무조건 이전에 머물렀던 페이지로 감
+      * 보호되는 URL 이라면 보호되는 URL 로 가고
+      * public url 은 보호되는 홈 (예를들면 / 경로) 로 가도록 구현 하면 될것같다.
+      * */
+      return url;
+    },
     async authorized({ request, auth }) {
-      const bb = await generatePKCE();
-      console.log(bb)
-
-
-
       const { pathname } = request.nextUrl
       if (pathname === "/middleware-example" && !auth) {
         const { codeChallenge, codeVerifier} = await generatePKCE()
@@ -140,7 +96,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             sameSite: "lax",
           }
         )
-
+        // return false
         return resp;
       }
       return true
