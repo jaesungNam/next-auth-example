@@ -48,6 +48,9 @@ function base64UrlEncode(buffer: Uint8Array): string {
     .replace(/\//g, "_");
 }
 
+const useSecureCookies = Boolean(process.env.AUTH_URL?.startsWith('https'))
+const cookiePrefix = useSecureCookies ? "__Secure-" : "";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   debug: false,
   theme: { logo: "https://authjs.dev/img/logo-sm.png" },
@@ -80,14 +83,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const resp = NextResponse.redirect(url)
 
         const codeVerifierEncoded = await encode<{value: string}>({
-          salt: "authjs.pkce.code_verifier",
+          salt: `${cookiePrefix}authjs.pkce.code_verifier`,
           token: { value: codeVerifier},
           maxAge: 900,
           secret: '30a5185b44a7426d1684500b9fdea7b59dc76d967c6b01e5a7bff08972acb3f3'
         })
 
         resp.cookies.set(
-          "authjs.pkce.code_verifier",
+          `${cookiePrefix}authjs.pkce.code_verifier`,
           codeVerifierEncoded,
           {
             maxAge: 900,
