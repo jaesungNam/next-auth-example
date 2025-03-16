@@ -70,10 +70,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const { pathname } = request.nextUrl
       if (pathname === "/middleware-example" && !auth) {
         const { codeChallenge, codeVerifier} = await generatePKCE()
+        console.log(request.nextUrl.origin)
         const oauth2Params = {
           "response_type": "code",
           "client_id": "web-client",
-          "redirect_uri": `${request.url}/api/auth/callback/keycloak`,
+          "redirect_uri": `${request.nextUrl.origin}/api/auth/callback/keycloak`,
           "code_challenge": codeChallenge,
           "code_challenge_method": "S256",
           "scope": "openid profile email"
