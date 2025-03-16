@@ -11,10 +11,14 @@ export const GET = auth(async (req) => {
           'Authorization': `Bearer ${req.auth.accessToken}`
         }
       })
-      const json = await resp.text();
+      const json = await resp.json();
       return Response.json(json)
     } catch (e) {
-      return Response.json({message: 'error!!'}, {status: 500})
+      let message = '에러다.'
+      if(e instanceof Error) {
+        message = `${message} : ${e.message}`
+      }
+      return Response.json({message}, {status: 500})
     }
   }
 
