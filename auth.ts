@@ -96,6 +96,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             maxAge: 900,
             path: '/',
             httpOnly: true,
+            secure: useSecureCookies,
             sameSite: "lax",
           }
         )
