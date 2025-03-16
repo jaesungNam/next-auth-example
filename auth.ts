@@ -89,7 +89,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           maxAge: 900,
           secret: '30a5185b44a7426d1684500b9fdea7b59dc76d967c6b01e5a7bff08972acb3f3'
         })
-
+        console.log(request.url, 'requesturl')
         resp.cookies.set(
           `${cookiePrefix}authjs.pkce.code_verifier`,
           codeVerifierEncoded,
@@ -105,6 +105,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           `${cookiePrefix}authjs.callback-url`,
           request.url,
           {
+            maxAge: 900,
             path: '/',
             httpOnly: true,
             secure: useSecureCookies,
